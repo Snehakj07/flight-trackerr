@@ -4,171 +4,228 @@ import { useState } from 'react';
 import { Flight } from '../api/flights/route';
 
 export default function FlightSearch() {
-    const [searchQuery, setSearchQuery] = useState('');
-    const [flights, setFlights] = useState<Flight[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [searched, setSearched] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [flights, setFlights] = useState<Flight[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searched, setSearched] = useState(false);
 
-    const handleSearch = async (e: React.FormEvent) => {
-        e.preventDefault();
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-        if (!searchQuery.trim()) return;
+    if (!searchQuery.trim()) return;
 
-        setLoading(true);
-        setSearched(true);
+    setLoading(true);
+    setSearched(true);
 
-        try {
-            const response = await fetch(`/api/flights?q=${encodeURIComponent(searchQuery)}`);
-            const data = await response.json();
-            setFlights(data.flights || []);
-        } catch (error) {
-            console.error('Error fetching flights:', error);
-            setFlights([]);
-        } finally {
-            setLoading(false);
-        }
+    try {
+      const response = await fetch(`/api/flights?q=${encodeURIComponent(searchQuery)}`);
+      const data = await response.json();
+      setFlights(data.flights || []);
+    } catch (error) {
+      console.error('Error fetching flights:', error);
+      setFlights([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDateTime = (dateTimeString: string) => {
+    const date = new Date(dateTimeString);
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const createGoogleCalendarLink = (flight: Flight) => {
+    // Format dates for Google Calendar (YYYYMMDDTHHMMSS format in UTC)
+    const formatForCalendar = (dateString: string) => {
+      const date = new Date(dateString);
+      return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
     };
 
-    const formatDateTime = (dateTimeString: string) => {
-        const date = new Date(dateTimeString);
-        return date.toLocaleString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        });
-    };
+    const startTime = formatForCalendar(flight.departure.time);
+    const endTime = formatForCalendar(flight.arrival.time);
 
-    return (
-        <div className="flight-search-container">
-            <div className="search-header fade-in">
-                <h1 className="title">
-                    <span className="gradient-text">Flight Lookup</span>
-                </h1>
-                <p className="subtitle">
-                    Search for flight information by entering a flight number
-                </p>
-            </div>
+    // Create event title
+    const title = `Flight ${flight.flightNumber} - ${flight.airline}`;
 
-            <form onSubmit={handleSearch} className="search-form glass-card fade-in">
-                <div className="search-input-wrapper">
-                    <svg
-                        className="search-icon"
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                    >
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <path d="m21 21-4.35-4.35"></path>
-                    </svg>
-                    <input
-                        type="text"
-                        className="input search-input"
-                        placeholder="Enter flight number (e.g., AA100, UA200)"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                </div>
-                <button type="submit" className="btn btn-primary" disabled={loading}>
-                    {loading ? 'Searching...' : 'Search Flights'}
-                </button>
-            </form>
+    // Create event description with flight details
+    const description = `Flight Details:
+Airline: ${flight.airline}
+Flight Number: ${flight.flightNumber}
+Status: ${flight.status}
 
-            {loading && (
-                <div className="loading-container fade-in">
-                    <div className="spinner"></div>
-                    <p>Searching for flights...</p>
-                </div>
-            )}
+Departure: ${flight.departure.airport} - ${flight.departure.city}, ${flight.departure.country}
+Departure Time: ${formatDateTime(flight.departure.time)} (${flight.departure.timezone})
 
-            {!loading && searched && (
-                <div className="results-container">
-                    {flights.length > 0 ? (
-                        <>
-                            <h2 className="results-title fade-in">
-                                Found {flights.length} {flights.length === 1 ? 'flight' : 'flights'}
-                            </h2>
-                            <div className="flights-grid">
-                                {flights.map((flight, index) => (
-                                    <div
-                                        key={flight.id}
-                                        className="flight-card glass-card slide-in"
-                                        style={{ animationDelay: `${index * 100}ms` }}
-                                    >
-                                        <div className="flight-header">
-                                            <div className="flight-number-badge">
-                                                {flight.flightNumber}
-                                            </div>
-                                            <div className="airline-name">{flight.airline}</div>
-                                            <div className={`status-badge status-${flight.status.toLowerCase().replace(' ', '-')}`}>
-                                                {flight.status}
-                                            </div>
-                                        </div>
+Arrival: ${flight.arrival.airport} - ${flight.arrival.city}, ${flight.arrival.country}
+Arrival Time: ${formatDateTime(flight.arrival.time)} (${flight.arrival.timezone})
 
-                                        <div className="flight-route">
-                                            <div className="location-info">
-                                                <div className="location-label">Departure</div>
-                                                <div className="airport-code">{flight.departure.airport}</div>
-                                                <div className="city-name">
-                                                    {flight.departure.city}, {flight.departure.country}
-                                                </div>
-                                                <div className="time-info">
-                                                    <svg className="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                        <circle cx="12" cy="12" r="10"></circle>
-                                                        <polyline points="12 6 12 12 16 14"></polyline>
-                                                    </svg>
-                                                    {formatDateTime(flight.departure.time)}
-                                                </div>
-                                                <div className="timezone">{flight.departure.timezone}</div>
-                                            </div>
+Duration: ${flight.duration}`;
 
-                                            <div className="route-line">
-                                                <svg className="plane-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                                                    <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
-                                                </svg>
-                                                <div className="duration">{flight.duration}</div>
-                                            </div>
+    // Create location string
+    const location = `${flight.departure.airport} → ${flight.arrival.airport}`;
 
-                                            <div className="location-info">
-                                                <div className="location-label">Arrival</div>
-                                                <div className="airport-code">{flight.arrival.airport}</div>
-                                                <div className="city-name">
-                                                    {flight.arrival.city}, {flight.arrival.country}
-                                                </div>
-                                                <div className="time-info">
-                                                    <svg className="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                        <circle cx="12" cy="12" r="10"></circle>
-                                                        <polyline points="12 6 12 12 16 14"></polyline>
-                                                    </svg>
-                                                    {formatDateTime(flight.arrival.time)}
-                                                </div>
-                                                <div className="timezone">{flight.arrival.timezone}</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </>
-                    ) : (
-                        <div className="no-results fade-in">
-                            <svg className="no-results-icon" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <circle cx="11" cy="11" r="8"></circle>
-                                <path d="m21 21-4.35-4.35"></path>
-                            </svg>
-                            <h3>No flights found</h3>
-                            <p>Try searching with a different flight number</p>
+    // Build Google Calendar URL
+    const baseUrl = 'https://calendar.google.com/calendar/render';
+    const params = new URLSearchParams({
+      action: 'TEMPLATE',
+      text: title,
+      dates: `${startTime}/${endTime}`,
+      details: description,
+      location: location,
+    });
+
+    return `${baseUrl}?${params.toString()}`;
+  };
+
+  const handleCardClick = (flight: Flight) => {
+    const calendarUrl = createGoogleCalendarLink(flight);
+    window.open(calendarUrl, '_blank');
+  };
+
+  return (
+    <div className="flight-search-container">
+      <div className="search-header fade-in">
+        <h1 className="title">
+          <span className="gradient-text">Flight Lookup</span>
+        </h1>
+        <p className="subtitle">
+          Search for flight information by entering a flight number
+        </p>
+      </div>
+
+      <form onSubmit={handleSearch} className="search-form glass-card fade-in">
+        <div className="search-input-wrapper">
+          <svg
+            className="search-icon"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.35-4.35"></path>
+          </svg>
+          <input
+            type="text"
+            className="input search-input"
+            placeholder="Enter flight number (e.g., AA100, UA200)"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <button type="submit" className="btn btn-primary" disabled={loading}>
+          {loading ? 'Searching...' : 'Search Flights'}
+        </button>
+      </form>
+
+      {loading && (
+        <div className="loading-container fade-in">
+          <div className="spinner"></div>
+          <p>Searching for flights...</p>
+        </div>
+      )}
+
+      {!loading && searched && (
+        <div className="results-container">
+          {flights.length > 0 ? (
+            <>
+              <h2 className="results-title fade-in">
+                Found {flights.length} {flights.length === 1 ? 'flight' : 'flights'}
+              </h2>
+              <div className="flights-grid">
+                {flights.map((flight, index) => (
+                  <div
+                    key={flight.id}
+                    className="flight-card glass-card slide-in"
+                    style={{ animationDelay: `${index * 100}ms` }}
+                    onClick={() => handleCardClick(flight)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleCardClick(flight);
+                      }
+                    }}
+                  >
+                    <div className="flight-header">
+                      <div className="flight-number-badge">
+                        {flight.flightNumber}
+                      </div>
+                      <div className="airline-name">{flight.airline}</div>
+                      <div className={`status-badge status-${flight.status.toLowerCase().replace(' ', '-')}`}>
+                        {flight.status}
+                      </div>
+                    </div>
+
+                    <div className="flight-route">
+                      <div className="location-info">
+                        <div className="location-label">Departure</div>
+                        <div className="airport-code">{flight.departure.airport}</div>
+                        <div className="city-name">
+                          {flight.departure.city}, {flight.departure.country}
                         </div>
-                    )}
-                </div>
-            )}
+                        <div className="time-info">
+                          <svg className="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                          </svg>
+                          {formatDateTime(flight.departure.time)}
+                        </div>
+                        <div className="timezone">{flight.departure.timezone}</div>
+                      </div>
 
-            <style jsx>{`
+                      <div className="route-line">
+                        <svg className="plane-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
+                        </svg>
+                        <div className="duration">{flight.duration}</div>
+                      </div>
+
+                      <div className="location-info">
+                        <div className="location-label">Arrival</div>
+                        <div className="airport-code">{flight.arrival.airport}</div>
+                        <div className="city-name">
+                          {flight.arrival.city}, {flight.arrival.country}
+                        </div>
+                        <div className="time-info">
+                          <svg className="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                          </svg>
+                          {formatDateTime(flight.arrival.time)}
+                        </div>
+                        <div className="timezone">{flight.arrival.timezone}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="no-results fade-in">
+              <svg className="no-results-icon" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
+              </svg>
+              <h3>No flights found</h3>
+              <p>Try searching with a different flight number</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      <style jsx>{`
         .flight-search-container {
           max-width: 1000px;
           margin: 0 auto;
@@ -250,6 +307,17 @@ export default function FlightSearch() {
           padding: 2rem;
           opacity: 0;
           animation: slideIn 0.4s ease-out forwards;
+          cursor: pointer;
+          transition: all var(--transition-normal);
+        }
+
+        .flight-card:hover {
+          transform: translateY(-4px);
+          box-shadow: var(--shadow-lg), 0 0 30px rgba(59, 130, 246, 0.2);
+        }
+
+        .flight-card:active {
+          transform: translateY(-2px);
         }
 
         .flight-header {
@@ -413,6 +481,6 @@ export default function FlightSearch() {
           }
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 }
